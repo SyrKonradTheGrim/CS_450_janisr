@@ -160,32 +160,27 @@ int main(int argc, char **argv) {
     glClearColor(1.0f, 1.0f, 0.8f, 1.0f);
 
     // Command line argument handling for model path
-    std::string modelPath = "sampleModels/sphere.obj"; // Default model path
+    string modelPath = "sampleModels/sphere.obj";
     if (argc >= 2) {
-        modelPath = argv[1]; // Use provided model path if available
+        modelPath = argv[1];
     }
 
-	Assimp::Importer importer;
-	const aiScene* scene = importer.ReadFile(modelPath, 
-    	aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices);
+    // Load the model using Assimp
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(modelPath, 
+        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices);
 
-	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-    	cerr << "ERROR: Failed to load model: " << modelPath << endl;
-    	cleanupGLFW(window);
-    	return -1;
-	}
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        cerr << "ERROR: Failed to load model: " << modelPath << endl;
+        cleanupGLFW(window);
+        return -1;
+    }
 
-	// Create simple quad
-	// Mesh m;
-	// createSimplePentagon(m);
+    // Create MeshGL vector to store all meshes
+    vector<MeshGL> meshGLVector;
 
-	// Create OpenGL mesh (VAO) from data
-	//MeshGL mgl;
-	//createMeshGL(m, mgl);
-	vetor<MeshGL> meshGLVector;
-
-
-	for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+    // Process each mesh in the loaded model
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
         Mesh m;
         extractMeshData(scene->mMeshes[i], m); // Extract mesh data from Assimp's mesh
 
@@ -194,44 +189,45 @@ int main(int argc, char **argv) {
 
         meshGLVector.push_back(mgl); // Store MeshGL for drawing
     }
-	
-	// Enable depth testing
-	glEnable(GL_DEPTH_TEST);
 
-	while (!glfwWindowShouldClose(window)) {
-		// Set viewport size
-		int fwidth, fheight;
-		glfwGetFramebufferSize(window, &fwidth, &fheight);
-		glViewport(0, 0, fwidth, fheight);
+    // Enable depth testing
+    glEnable(GL_DEPTH_TEST);
 
-		// Clear the framebuffer
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // Main rendering loop
+    while (!glfwWindowShouldClose(window)) {
+        // Set viewport size
+        int fwidth, fheight;
+        glfwGetFramebufferSize(window, &fwidth, &fheight);
+        glViewport(0, 0, fwidth, fheight);
 
-		// Use shader program
-		glUseProgram(programID);
+        // Clear the framebuffer
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// Draw object
-		for (auto& mgl : meshGLVector) {
-            drawMesh(mgl);	
+        // Use shader program
+        // glUseProgram(programID);
 
-		// Swap buffers and poll for window events		
-		glfwSwapBuffers(window);
-		glfwPollEvents();
+        // Draw each MeshGL object
+        for (auto& mgl : meshGLVector) {
+            drawMesh(mgl); // Draw each mesh
+        }
 
-		// Sleep for 15 ms
-		this_thread::sleep_for(chrono::milliseconds(15));
-	}
+        // Swap buffers and poll for window events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
 
-	// Clean up mesh
-	cleanupMesh(mgl);
+        // Sleep for 15 ms
+        // this_thread::sleep_for(chrono::milliseconds(15));
+    }
 
-	// Clean up shader programs
-	glUseProgram(0);
-	glDeleteProgram(programID);
-		
-	// Destroy window and stop GLFW
-	cleanupGLFW(window);
+    // Clean up all MeshGL objects
+    for (auto& mgl : meshGLVector) {
+        cleanupMesh(mgl);
+    }
 
-	return 0;
-	}
+    // Clean up GLFW and OpenGL resources
+    // glUseProgram(0);
+    // glDeleteProgram(programID);
+    cleanupGLFW(window);
+
+    return 0;
 }

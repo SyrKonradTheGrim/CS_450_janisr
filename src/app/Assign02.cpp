@@ -95,8 +95,8 @@ void createSimplePentagon(Mesh &m) {
 	m.indices.push_back(3);
 
 	m.indices.push_back(1);
-	m.indices.push_back(0);
 	m.indices.push_back(4);
+	m.indices.push_back(0);
 }
 
 // Main 

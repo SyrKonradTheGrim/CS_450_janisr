@@ -159,6 +159,25 @@ int main(int argc, char **argv) {
     // Set the background color to a shade of blue
     glClearColor(1.0f, 1.0f, 0.8f, 1.0f);
 
+    // Create and load shaders
+	GLuint programID = 0;
+	try {		
+		// Load vertex shader code and fragment shader code
+		string vertexCode = readFileToString("./shaders/Assign02/Basic.vs");
+		string fragCode = readFileToString("./shaders/Assign02/Basic.fs");
+
+		// Print out shader code, just to check
+		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
+
+		// Create shader program from code
+		programID = initShaderProgramFromSource(vertexCode, fragCode);
+	}
+    catch (exception e) {		
+		// Close program
+		cleanupGLFW(window);
+		exit(EXIT_FAILURE);
+	}
+
     // Command line argument handling for model path
     string modelPath = "sampleModels/sphere.obj";
     if (argc >= 2) {
@@ -204,7 +223,7 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Use shader program
-        // glUseProgram(programID);
+        glUseProgram(programID);
 
         // Draw each MeshGL object
         for (auto& mgl : meshGLVector) {

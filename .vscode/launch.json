@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "./sampleModels/sphere.obj"
+                "./sampleModels/bunnyteatime.glb"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

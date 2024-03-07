@@ -14,13 +14,79 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include "glm/gtc/matrix_transform.hpp"
-#define GLM_ENABLE_EXPERIMENTAL
 #include "glm/gtx/transform.hpp"
 #include "glm/gtx/string_cast.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "Utility.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
+
 using namespace std;
+
+float rotAngle = 0.0f;
+
+glm::mat4 makeRotateZ(glm::vec3 offset) {
+    // Convert rotAngle to radians
+    float radians = glm::radians(rotAngle);
+
+    // Generate transformation matrices
+    glm::mat4 translate1 = glm::translate(glm::mat4(1.0f), -offset);
+    glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), radians, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 translate2 = glm::translate(glm::mat4(1.0f), offset);
+
+    // Form composite transformation
+    return translate2 * rotate * translate1;
+}
+
+void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, GLint modelMatLoc, int level) {
+    // Get transformation for the current node
+    glm::mat4 nodeT;
+    aiMatToGLM4(node->mTransformation, nodeT);
+
+    // Compute current model matrix
+    glm::mat4 modelMat = parentMat * nodeT;
+
+    // Get location of current node
+    glm::vec3 pos = glm::vec3(modelMat[3]);
+
+    // Proper local Z rotation
+    glm::mat4 R = makeRotateZ(pos);
+
+    // Generate temporary model matrix
+    glm::mat4 tmpModel = R * modelMat;
+
+    // Pass tmpModel as model matrix
+    glUniformMatrix4fv(modelMatLoc, 1, GL_FALSE, glm::value_ptr(tmpModel));
+
+    // Render each mesh in the node
+    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+        int index = node->mMeshes[i];
+        drawMesh(allMeshes.at(index));
+    }
+
+    // Render each child node recursively
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        renderScene(allMeshes, node->mChildren[i], modelMat, modelMatLoc, level + 1);
+    }
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+                break;
+            case GLFW_KEY_J:
+                rotAngle += 1.0f;
+                break;
+            case GLFW_KEY_K:
+                rotAngle -= 1.0f;
+                break;
+            default:
+                break;
+        }
+    }
+}
 
 // Create very simple mesh: a quad (4 vertices, 6 indices, 2 triangles)
 void createSimpleQuad(Mesh &m) {
@@ -104,8 +170,8 @@ void createSimplePentagon(Mesh &m) {
 	m.indices.push_back(2);
 	m.indices.push_back(3);
 
+    m.indices.push_back(0);
 	m.indices.push_back(1);
-	m.indices.push_back(0);
 	m.indices.push_back(4);
 }
 
@@ -165,8 +231,27 @@ int main(int argc, char **argv) {
     // Set the background color to a shade of blue
     glClearColor(1.0f, 1.0f, 0.8f, 1.0f);
 
+    // Create and load shaders
+	GLuint programID = 0;
+	try {		
+		// Load vertex shader code and fragment shader code
+		string vertexCode = readFileToString("./shaders/Assign04/Basic.vs");
+		string fragCode = readFileToString("./shaders/Assign04/Basic.fs");
+
+		// Print out shader code, just to check
+		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
+
+		// Create shader program from code
+		programID = initShaderProgramFromSource(vertexCode, fragCode);
+	}
+	catch (exception e) {		
+		// Close program
+		cleanupGLFW(window);
+		exit(EXIT_FAILURE);
+	}
+
     // Command line argument handling for model path
-    string modelPath = "sampleModels/sphere.obj";
+    string modelPath = "sampleModels/bunnyteatime.glb";
     if (argc >= 2) {
         modelPath = argv[1];
     }
@@ -199,6 +284,15 @@ int main(int argc, char **argv) {
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
 
+    // Use shader program
+    glUseProgram(programID);
+
+    // Get the model matrix location
+    GLint modelMatLoc = glGetUniformLocation(programID, "modelMat");
+
+    // Set the key callback function
+    glfwSetKeyCallback(window, keyCallback);
+
     // Main rendering loop
     while (!glfwWindowShouldClose(window)) {
         // Set viewport size
@@ -210,19 +304,14 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Use shader program
-        // glUseProgram(programID);
+        glUseProgram(programID);
 
-        // Draw each MeshGL object
-        for (auto& mgl : meshGLVector) {
-            drawMesh(mgl); // Draw each mesh
-        }
+        // Draw the scene recursively
+        renderScene(meshGLVector, scene->mRootNode, glm::mat4(1.0f), modelMatLoc, 0);
 
         // Swap buffers and poll for window events
         glfwSwapBuffers(window);
         glfwPollEvents();
-
-        // Sleep for 15 ms
-        // this_thread::sleep_for(chrono::milliseconds(15));
     }
 
     // Clean up all MeshGL objects
@@ -230,9 +319,6 @@ int main(int argc, char **argv) {
         cleanupMesh(mgl);
     }
 
-    // Clean up GLFW and OpenGL resources
-    // glUseProgram(0);
-    // glDeleteProgram(programID);
     cleanupGLFW(window);
 
     return 0;

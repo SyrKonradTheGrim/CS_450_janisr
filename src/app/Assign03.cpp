@@ -175,6 +175,26 @@ int main(int argc, char **argv) {
         cleanupGLFW(window);
         return -1;
     }
+    
+	// Create and load shaders
+	GLuint programID = 0;
+	try {		
+		// Load vertex shader code and fragment shader code
+		string vertexCode = readFileToString("./shaders/Assign03/Basic.vs");
+		string fragCode = readFileToString("./shaders/Assign03/Basic.fs");
+
+		// Print out shader code, just to check
+		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
+
+		// Create shader program from code
+		programID = initShaderProgramFromSource(vertexCode, fragCode);
+	}
+	catch (exception e) {		
+		// Close program
+		cleanupGLFW(window);
+		exit(EXIT_FAILURE);
+	}
+
 
     // Create MeshGL vector to store all meshes
     vector<MeshGL> meshGLVector;
@@ -204,7 +224,7 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Use shader program
-        // glUseProgram(programID);
+        glUseProgram(programID);
 
         // Draw each MeshGL object
         for (auto& mgl : meshGLVector) {
@@ -225,8 +245,8 @@ int main(int argc, char **argv) {
     }
 
     // Clean up GLFW and OpenGL resources
-    // glUseProgram(0);
-    // glDeleteProgram(programID);
+    glUseProgram(0);
+    glDeleteProgram(programID);
     cleanupGLFW(window);
 
     return 0;

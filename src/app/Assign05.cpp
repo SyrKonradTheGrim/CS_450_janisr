@@ -25,6 +25,8 @@ using namespace std;
 
 float rotAngle = 0.0f;
 
+//Whoops
+
 // Globals
 glm::vec3 eye(0.0f, 0.0f, 1.0f); // Default camera position
 glm::vec3 lookAt(0.0f, 0.0f, 0.0f); // Default look-at point

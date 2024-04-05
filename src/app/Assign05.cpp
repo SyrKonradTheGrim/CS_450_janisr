@@ -13,8 +13,133 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtx/transform.hpp"
+#include "glm/gtx/string_cast.hpp"
+#include "glm/gtc/type_ptr.hpp"
+#include "Utility.hpp"
+
+#define GLM_ENABLE_EXPERIMENTAL
 
 using namespace std;
+
+float rotAngle = 0.0f;
+
+// Globals
+glm::vec3 eye(0.0f, 0.0f, 1.0f); // Default camera position
+glm::vec3 lookAt(0.0f, 0.0f, 0.0f); // Default look-at point
+glm::vec2 mousePos(0.0f, 0.0f); // Initial mouse position
+
+glm::mat4 makeLocalRotate(glm::vec3 offset, glm::vec3 axis, float angle) {
+    glm::mat4 translateBack = glm::translate(glm::mat4(1.0f), -offset);
+    glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
+    glm::mat4 translateForward = glm::translate(glm::mat4(1.0f), offset);
+    return translateForward * rotate * translateBack;
+}
+
+glm::mat4 makeRotateZ(glm::vec3 offset) {
+    // Convert rotAngle to radians
+    float radians = glm::radians(rotAngle);
+
+    // Generate transformation matrices
+    glm::mat4 translate1 = glm::translate(glm::mat4(1.0f), -offset);
+    glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), radians, glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 translate2 = glm::translate(glm::mat4(1.0f), offset);
+
+    // Form composite transformation
+    return translate2 * rotate * translate1;
+}
+
+static void mouse_position_callback(GLFWwindow* window, double xpos, double ypos) {
+    glm::vec2 relMouse = glm::vec2(xpos, ypos) - mousePos;
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    if (width > 0 && height > 0) {
+        float scaleX = relMouse.x / static_cast<float>(width);
+        float scaleY = relMouse.y / static_cast<float>(height);
+
+        glm::vec3 cameraDir = glm::normalize(lookAt - eye);
+        glm::vec3 globalYAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 localXAxis = glm::normalize(glm::cross(cameraDir, globalYAxis));
+
+        glm::mat4 rotationX = makeLocalRotate(eye, localXAxis, 30.0f * scaleY);
+        glm::mat4 rotationY = makeLocalRotate(eye, globalYAxis, 30.0f * scaleX);
+
+        lookAt = glm::vec3(rotationX * glm::vec4(lookAt, 1.0));
+        lookAt = glm::vec3(rotationY * glm::vec4(lookAt, 1.0));
+    }
+    mousePos = glm::vec2(xpos, ypos);
+}
+
+void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, GLint modelMatLoc, int level) {
+    // Get transformation for the current node
+    glm::mat4 nodeT;
+    aiMatToGLM4(node->mTransformation, nodeT);
+
+    // Compute current model matrix
+    glm::mat4 modelMat = parentMat * nodeT;
+
+    // Get location of current node
+    glm::vec3 pos = glm::vec3(modelMat[3]);
+
+    // Proper local Z rotation
+    glm::mat4 R = makeRotateZ(pos);
+
+    // Generate temporary model matrix
+    glm::mat4 tmpModel = R * modelMat;
+
+    // Pass tmpModel as model matrix
+    glUniformMatrix4fv(modelMatLoc, 1, GL_FALSE, glm::value_ptr(tmpModel));
+
+    // Render each mesh in the node
+    for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+        int index = node->mMeshes[i];
+        drawMesh(allMeshes.at(index));
+    }
+
+    // Render each child node recursively
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        renderScene(allMeshes, node->mChildren[i], modelMat, modelMatLoc, level + 1);
+    }
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+        float speed = 0.1f;
+        glm::vec3 cameraDir = glm::normalize(lookAt - eye);
+        glm::vec3 globalYAxis = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 localXAxis = glm::normalize(glm::cross(cameraDir, globalYAxis));
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+                break;
+            case GLFW_KEY_J:
+                rotAngle += 1.0f;
+                break;
+            case GLFW_KEY_K:
+                rotAngle -= 1.0f;
+                break;
+            default:
+                break;
+            case GLFW_KEY_W:
+                eye += speed * cameraDir;
+                lookAt += speed * cameraDir;
+                break;
+            case GLFW_KEY_S:
+                eye -= speed * cameraDir;
+                lookAt -= speed * cameraDir;
+                break;
+            case GLFW_KEY_D:
+                eye += speed * localXAxis;
+                lookAt += speed * localXAxis;
+                break;
+            case GLFW_KEY_A:
+                eye -= speed * localXAxis;
+                lookAt -= speed * localXAxis;
+                break;
+        }
+    }
+}
 
 // Create very simple mesh: a quad (4 vertices, 6 indices, 2 triangles)
 void createSimpleQuad(Mesh &m) {
@@ -98,8 +223,8 @@ void createSimplePentagon(Mesh &m) {
 	m.indices.push_back(2);
 	m.indices.push_back(3);
 
+    m.indices.push_back(0);
 	m.indices.push_back(1);
-	m.indices.push_back(0);
 	m.indices.push_back(4);
 }
 
@@ -145,10 +270,20 @@ int main(int argc, char **argv) {
 
     // GLFW setup
     // Switch to 4.1 if necessary for macOS
-    GLFWwindow* window = setupGLFW("Assign03: janisr", 4, 3, 800, 800, DEBUG_MODE);
+    GLFWwindow* window = setupGLFW("Assign05: janisr", 4, 3, 800, 800, DEBUG_MODE);
 
     // GLEW setup
     setupGLEW(window);
+
+    // Get the initial position of the mouse
+    double mx, my;
+    glfwGetCursorPos(window, &mx, &my);
+    mousePos = glm::vec2(mx, my);
+
+    // Set cursor motion
+    glfwSetCursorPosCallback(window, mouse_position_callback);
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Check OpenGL version
     checkOpenGLVersion();
@@ -163,8 +298,8 @@ int main(int argc, char **argv) {
 	GLuint programID = 0;
 	try {		
 		// Load vertex shader code and fragment shader code
-		string vertexCode = readFileToString("./shaders/Assign02/Basic.vs");
-		string fragCode = readFileToString("./shaders/Assign02/Basic.fs");
+		string vertexCode = readFileToString("./shaders/Assign05/Basic.vs");
+		string fragCode = readFileToString("./shaders/Assign05/Basic.fs");
 
 		// Print out shader code, just to check
 		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
@@ -172,14 +307,14 @@ int main(int argc, char **argv) {
 		// Create shader program from code
 		programID = initShaderProgramFromSource(vertexCode, fragCode);
 	}
-    catch (exception e) {		
+	catch (exception e) {		
 		// Close program
 		cleanupGLFW(window);
 		exit(EXIT_FAILURE);
 	}
 
     // Command line argument handling for model path
-    string modelPath = "sampleModels/sphere.obj";
+    string modelPath = "sampleModels/bunnyteatime.glb";
     if (argc >= 2) {
         modelPath = argv[1];
     }
@@ -194,26 +329,6 @@ int main(int argc, char **argv) {
         cleanupGLFW(window);
         return -1;
     }
-    
-	// Create and load shaders
-	//GLuint programID = 0;
-	try {		
-		// Load vertex shader code and fragment shader code
-		string vertexCode = readFileToString("./shaders/Assign03/Basic.vs");
-		string fragCode = readFileToString("./shaders/Assign03/Basic.fs");
-
-		// Print out shader code, just to check
-		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
-
-		// Create shader program from code
-		programID = initShaderProgramFromSource(vertexCode, fragCode);
-	}
-	catch (exception e) {		
-		// Close program
-		cleanupGLFW(window);
-		exit(EXIT_FAILURE);
-	}
-
 
     // Create MeshGL vector to store all meshes
     vector<MeshGL> meshGLVector;
@@ -232,6 +347,17 @@ int main(int argc, char **argv) {
     // Enable depth testing
     glEnable(GL_DEPTH_TEST);
 
+    // Use shader program
+    glUseProgram(programID);
+
+    // Get the model, view, and projection locations
+    GLint modelMatLoc = glGetUniformLocation(programID, "modelMat");
+    GLuint viewMatLoc = glGetUniformLocation(programID, "viewMat");
+    GLuint projMatLoc = glGetUniformLocation(programID, "projMat");
+
+    // Set the key callback function
+    glfwSetKeyCallback(window, keyCallback);
+
     // Main rendering loop
     while (!glfwWindowShouldClose(window)) {
         // Set viewport size
@@ -245,17 +371,29 @@ int main(int argc, char **argv) {
         // Use shader program
         glUseProgram(programID);
 
-        // Draw each MeshGL object
-        for (auto& mgl : meshGLVector) {
-            drawMesh(mgl); // Draw each mesh
-        }
+        // Create view matrix
+        glm::mat4 view = glm::lookAt(eye, lookAt, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // Pass view matrix to shader
+        glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+        // Calculate aspect ratio
+        int width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        float aspectRatio = (height > 0) ? static_cast<float>(width) / static_cast<float>(height) : 1.0f;
+
+        // Create projection matrix
+        glm::mat4 projection = glm::perspective(glm::radians(90.0f), aspectRatio, 0.01f, 50.0f);
+
+        // Pass projection matrix to shader
+        glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Draw the scene recursively
+        renderScene(meshGLVector, scene->mRootNode, glm::mat4(1.0f), modelMatLoc, 0);
 
         // Swap buffers and poll for window events
         glfwSwapBuffers(window);
         glfwPollEvents();
-
-        // Sleep for 15 ms
-        // this_thread::sleep_for(chrono::milliseconds(15));
     }
 
     // Clean up all MeshGL objects
@@ -263,9 +401,6 @@ int main(int argc, char **argv) {
         cleanupMesh(mgl);
     }
 
-    // Clean up GLFW and OpenGL resources
-    glUseProgram(0);
-    glDeleteProgram(programID);
     cleanupGLFW(window);
 
     return 0;

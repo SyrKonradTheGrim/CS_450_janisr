@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
 	}
 
     // Command line argument handling for model path
-    string modelPath = "sampleModels/bunnyteatime.glb";
+    string modelPath = "sampleModels/sphere.obj";
     if (argc >= 2) {
         modelPath = argv[1];
     }
@@ -318,6 +318,7 @@ int main(int argc, char **argv) {
     for (auto& mgl : meshGLVector) {
         cleanupMesh(mgl);
     }
+    meshGLVector.clear();
 
     cleanupGLFW(window);
 

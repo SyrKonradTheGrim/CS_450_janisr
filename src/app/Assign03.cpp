@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
     }
     
 	// Create and load shaders
-	//GLuint programID = 0;
+	GLuint programID = 0;
 	try {		
 		// Load vertex shader code and fragment shader code
 		string vertexCode = readFileToString("./shaders/Assign03/Basic.vs");

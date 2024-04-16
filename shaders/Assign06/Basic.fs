@@ -26,15 +26,15 @@ void main() {
     // Calculate diffuse color
     vec3 diffColor = diffuseCoefficient * vec3(vertexColor * light.color);
 
-    // Calculate specular coefficient (assuming shininess of 10.0)
+    // Calculate specular coefficient 
     float shininess = 10.0;
     vec3 R = reflect(-L, N);
-    vec3 V = normalize(-interPos.xyz);
+    vec3 V = normalize(interPos.xyz);
     float specularCoefficient = pow(max(dot(R, V), 0.0), shininess);
 
     // Calculate specular color
-    vec3 specularColor = specularCoefficient * vec3(1.0, 1.0, 1.0); // Assuming white specular color
-
+    vec3 specularColor = specularCoefficient * vec3(1.0, 1.0, 1.0);
+    
     // Set final color
     out_color = vec4(diffColor + specularColor, 1.0);
 }

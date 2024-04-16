@@ -23,6 +23,7 @@ void main()
     // Transform vertex position using modelMat
     vec4 viewPos = viewMat * modelMat * objPos;
     interPos = projMat * viewPos;
+    gl_Position = projMat * viewPos; 
 
     interNormal = normMat * normal;
 

@@ -241,7 +241,7 @@ void extractMeshData(aiMesh *mesh, Mesh &m) {
         aiVector3D aiPos = mesh->mVertices[i];
         vertex.position = glm::vec3(aiPos.x, aiPos.y, aiPos.z);
 
-        // Set the color of the Vertex (using a simple scheme here, but you can get creative)
+        // Set the color of the Vertex 
         float colorComponent = static_cast<float>(i) / mesh->mNumVertices; // Simple gradient effect
         vertex.color = glm::vec4(colorComponent, 1.0f - colorComponent, 0.5f, 1.0f); // RGBA, A always 1.0f
 

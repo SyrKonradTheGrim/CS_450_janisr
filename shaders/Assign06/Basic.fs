@@ -18,7 +18,7 @@ void main() {
     vec3 N = normalize(interNormal);
 
     // Calculate the light vector L
-    vec3 L = normalize(vec3(light.pos - interPos));
+    vec3 L = normalize(vec3(light.pos + interPos));
 
     // Calculate the diffuse coefficient
     float diffuseCoefficient = max(0.0, dot(N, L));
@@ -28,7 +28,7 @@ void main() {
 
     // Calculate specular coefficient 
     float shininess = 10.0;
-    vec3 R = reflect(-L, N);
+    vec3 R = reflect(L, N);
     vec3 V = normalize(interPos.xyz);
     float specularCoefficient = pow(max(dot(R, V), 0.0), shininess);
 

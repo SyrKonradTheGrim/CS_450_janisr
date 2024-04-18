@@ -30,7 +30,7 @@ void main() {
     float shininess = 10.0;
     vec3 R = reflect(L, N);
     vec3 V = normalize(interPos.xyz);
-    float specularCoefficient = pow(max(dot(R, V), 0.0), shininess);
+    float specularCoefficient = pow(max(dot(R, V), 0.0), shininess);//Missing Diffuse Coeffiecient mult///////////////////////////////////
 
     // Calculate specular color
     vec3 specularColor = specularCoefficient * vec3(1.0, 1.0, 1.0);

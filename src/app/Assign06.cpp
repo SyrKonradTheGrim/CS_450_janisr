@@ -23,6 +23,15 @@
 
 using namespace std;
 
+// Struct for Point Light
+struct PointLight {
+    glm::vec4 pos;
+    glm::vec4 color;
+};
+
+// Global Point Light object
+PointLight light;
+
 float rotAngle = 0.0f;
 
 // Globals
@@ -71,7 +80,7 @@ static void mouse_position_callback(GLFWwindow* window, double xpos, double ypos
     mousePos = glm::vec2(xpos, ypos);
 }
 
-void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, GLint modelMatLoc, int level) {
+void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, GLint modelMatLoc, GLint normMatLoc, glm::mat4 viewMat, int level) {
     // Get transformation for the current node
     glm::mat4 nodeT;
     aiMatToGLM4(node->mTransformation, nodeT);
@@ -88,6 +97,12 @@ void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, G
     // Generate temporary model matrix
     glm::mat4 tmpModel = R * modelMat;
 
+    // Calculate the normal matrix
+    glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(viewMat * tmpModel)));
+
+    // Pass normal matrix to shader
+    glUniformMatrix3fv(normMatLoc, 1, GL_FALSE, glm::value_ptr(normMat));
+
     // Pass tmpModel as model matrix
     glUniformMatrix4fv(modelMatLoc, 1, GL_FALSE, glm::value_ptr(tmpModel));
 
@@ -99,7 +114,7 @@ void renderScene(vector<MeshGL> &allMeshes, aiNode *node, glm::mat4 parentMat, G
 
     // Render each child node recursively
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        renderScene(allMeshes, node->mChildren[i], modelMat, modelMatLoc, level + 1);
+        renderScene(allMeshes, node->mChildren[i], modelMat, modelMatLoc, normMatLoc, viewMat, level + 1);
     }
 }
 
@@ -119,8 +134,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             case GLFW_KEY_K:
                 rotAngle -= 1.0f;
                 break;
-            default:
-                break;
             case GLFW_KEY_W:
                 eye += speed * cameraDir;
                 lookAt += speed * cameraDir;
@@ -137,103 +150,117 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
                 eye -= speed * localXAxis;
                 lookAt -= speed * localXAxis;
                 break;
+            case GLFW_KEY_1:
+                light.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // White
+                break;
+            case GLFW_KEY_2:
+                light.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f); // Red
+                break;
+            case GLFW_KEY_3:
+                light.color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f); // Green
+                break;
+            case GLFW_KEY_4:
+                light.color = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f); // Blue
+                break;
+            default:
+                break;
         }
     }
 }
 
 // Create very simple mesh: a quad (4 vertices, 6 indices, 2 triangles)
 void createSimpleQuad(Mesh &m) {
-	// Clear out vertices and elements
-	m.vertices.clear();
-	m.indices.clear();
+    // Clear out vertices and elements
+    m.vertices.clear();
+    m.indices.clear();
 
-	// Create four corners
-	Vertex upperLeft, upperRight;
-	Vertex lowerLeft, lowerRight;
+    // Create four corners
+    Vertex upperLeft, upperRight;
+    Vertex lowerLeft, lowerRight;
 
-	// Set positions of vertices
-	// Note: glm::vec3(x, y, z)
-	upperLeft.position = glm::vec3(-0.5, 0.5, 0.0);
-	upperRight.position = glm::vec3(0.5, 0.5, 0.0);
-	lowerLeft.position = glm::vec3(-0.5, -0.5, 0.0);
-	lowerRight.position = glm::vec3(0.5, -0.5, 0.0);
+    // Set positions of vertices
+    // Note: glm::vec3(x, y, z)
+    upperLeft.position = glm::vec3(-0.5, 0.5, 0.0);
+    upperRight.position = glm::vec3(0.5, 0.5, 0.0);
+    lowerLeft.position = glm::vec3(-0.5, -0.5, 0.0);
+    lowerRight.position = glm::vec3(0.5, -0.5, 0.0);
 
-	// Set vertex colors (red, green, blue, white)
-	// Note: glm::vec4(red, green, blue, alpha)
-	upperLeft.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
-	upperRight.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
-	lowerLeft.color = glm::vec4(0.0, 0.0, 1.0, 1.0);
-	lowerRight.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    // Set vertex colors (red, green, blue, white)
+    // Note: glm::vec4(red, green, blue, alpha)
+    upperLeft.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+    upperRight.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
+    lowerLeft.color = glm::vec4(0.0, 0.0, 1.0, 1.0);
+    lowerRight.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
 
-	// Add to mesh's list of vertices
-	m.vertices.push_back(upperLeft);
-	m.vertices.push_back(upperRight);	
-	m.vertices.push_back(lowerLeft);
-	m.vertices.push_back(lowerRight);
-	
-	// Add indices for two triangles
-	m.indices.push_back(0);
-	m.indices.push_back(3);
-	m.indices.push_back(1);
+    // Add to mesh's list of vertices
+    m.vertices.push_back(upperLeft);
+    m.vertices.push_back(upperRight);    
+    m.vertices.push_back(lowerLeft);
+    m.vertices.push_back(lowerRight);
+    
+    // Add indices for two triangles
+    m.indices.push_back(0);
+    m.indices.push_back(3);
+    m.indices.push_back(1);
 
-	m.indices.push_back(0);
-	m.indices.push_back(2);
-	m.indices.push_back(3);
+    m.indices.push_back(0);
+    m.indices.push_back(2);
+    m.indices.push_back(3);
 }
 
 void createSimplePentagon(Mesh &m) {
-	// Clear out vertices and elements
-	m.vertices.clear();
-	m.indices.clear();
+    // Clear out vertices and elements
+    m.vertices.clear();
+    m.indices.clear();
 
-	// Create four corners
-	Vertex upperLeft, upperRight;
-	Vertex lowerLeft, lowerRight;
-	Vertex top;
+    // Create four corners
+    Vertex upperLeft, upperRight;
+    Vertex lowerLeft, lowerRight;
+    Vertex top;
 
-	// Set positions of vertices
-	// Note: glm::vec3(x, y, z)
-	upperLeft.position = glm::vec3(-0.5, 0.5, 0.0);
-	upperRight.position = glm::vec3(0.5, 0.5, 0.0);
-	lowerLeft.position = glm::vec3(-0.5, -0.5, 0.0);
-	lowerRight.position = glm::vec3(0.5, -0.5, 0.0);
-	top.position = glm::vec3(0.0, 1.0, 0.0);
+    // Set positions of vertices
+    // Note: glm::vec3(x, y, z)
+    upperLeft.position = glm::vec3(-0.5, 0.5, 0.0);
+    upperRight.position = glm::vec3(0.5, 0.5, 0.0);
+    lowerLeft.position = glm::vec3(-0.5, -0.5, 0.0);
+    lowerRight.position = glm::vec3(0.5, -0.5, 0.0);
+    top.position = glm::vec3(0.0, 1.0, 0.0);
 
-	// Set vertex colors (red, green, blue, white)
-	// Note: glm::vec4(red, green, blue, alpha)
-	upperLeft.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
-	upperRight.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
-	lowerLeft.color = glm::vec4(0.0, 0.0, 1.0, 1.0);
-	lowerRight.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
-	top.color = glm::vec4(1.0, 1.0, 0.0, 0.0);
+    // Set vertex colors (red, green, blue, white)
+    // Note: glm::vec4(red, green, blue, alpha)
+    upperLeft.color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+    upperRight.color = glm::vec4(0.0, 1.0, 0.0, 1.0);
+    lowerLeft.color = glm::vec4(0.0, 0.0, 1.0, 1.0);
+    lowerRight.color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+    top.color = glm::vec4(1.0, 1.0, 0.0, 0.0);
 
-	// Add to mesh's list of vertices
-	m.vertices.push_back(upperLeft);
-	m.vertices.push_back(upperRight);	
-	m.vertices.push_back(lowerLeft);
-	m.vertices.push_back(lowerRight);
-	m.vertices.push_back(top);
-	
-	// Add indices for two triangles
-	m.indices.push_back(0);
-	m.indices.push_back(3);
-	m.indices.push_back(1);
-
-	m.indices.push_back(0);
-	m.indices.push_back(2);
-	m.indices.push_back(3);
+    // Add to mesh's list of vertices
+    m.vertices.push_back(upperLeft);
+    m.vertices.push_back(upperRight);    
+    m.vertices.push_back(lowerLeft);
+    m.vertices.push_back(lowerRight);
+    m.vertices.push_back(top);
+    
+    // Add indices for two triangles
+    m.indices.push_back(0);
+    m.indices.push_back(3);
+    m.indices.push_back(1);
 
     m.indices.push_back(0);
-	m.indices.push_back(1);
-	m.indices.push_back(4);
+    m.indices.push_back(2);
+    m.indices.push_back(3);
+
+    m.indices.push_back(0);
+    m.indices.push_back(1);
+    m.indices.push_back(4);
 }
 
 void extractMeshData(aiMesh *mesh, Mesh &m) {
-	// Clear out the Mesh's vertices and indices
-	m.vertices.clear();
-	m.indices.clear();
+    // Clear out the Mesh's vertices and indices
+    m.vertices.clear();
+    m.indices.clear();
 
-	// Loop through all vertices in the aiMesh
+    // Loop through all vertices in the aiMesh
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex;
 
@@ -241,15 +268,18 @@ void extractMeshData(aiMesh *mesh, Mesh &m) {
         aiVector3D aiPos = mesh->mVertices[i];
         vertex.position = glm::vec3(aiPos.x, aiPos.y, aiPos.z);
 
-        // Set the color of the Vertex 
-        float colorComponent = static_cast<float>(i) / mesh->mNumVertices; // Simple gradient effect
-        vertex.color = glm::vec4(colorComponent, 1.0f - colorComponent, 0.5f, 1.0f); // RGBA, A always 1.0f
+        // Convert aiVector3D to glm::vec3 for normal
+        aiVector3D aiNorm = mesh->mNormals[i];
+        vertex.normal = glm::vec3(aiNorm.x, aiNorm.y, aiNorm.z);
+
+        // Set the color of the Vertex to yellow
+        vertex.color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f); // Yellow
 
         // Add the Vertex to the Mesh's vertices list
         m.vertices.push_back(vertex);
     }
 
-	// Loop through all faces in the aiMesh
+    // Loop through all faces in the aiMesh
     for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
 
@@ -258,9 +288,7 @@ void extractMeshData(aiMesh *mesh, Mesh &m) {
             // Add each index for the face to the Mesh's list of indices
             m.indices.push_back(face.mIndices[j]);
         }
-	}
-
-
+    }
 }
 
 // Main 
@@ -270,7 +298,7 @@ int main(int argc, char **argv) {
 
     // GLFW setup
     // Switch to 4.1 if necessary for macOS
-    GLFWwindow* window = setupGLFW("Assign05: janisr", 4, 3, 800, 800, DEBUG_MODE);
+    GLFWwindow* window = setupGLFW("Assign06: janisr", 4, 3, 800, 800, DEBUG_MODE);
 
     // GLEW setup
     setupGLEW(window);
@@ -292,26 +320,26 @@ int main(int argc, char **argv) {
     if(DEBUG_MODE) checkAndSetupOpenGLDebugging();
 
     // Set the background color to a shade of blue
-    glClearColor(1.0f, 1.0f, 0.8f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.4f, 1.0f); // Dark blue
 
     // Create and load shaders
-	GLuint programID = 0;
-	try {		
-		// Load vertex shader code and fragment shader code
-		string vertexCode = readFileToString("./shaders/Assign05/Basic.vs");
-		string fragCode = readFileToString("./shaders/Assign05/Basic.fs");
+    GLuint programID = 0;
+    try {        
+        // Load vertex shader code and fragment shader code
+        string vertexCode = readFileToString("./shaders/Assign06/Basic.vs");
+        string fragCode = readFileToString("./shaders/Assign06/Basic.fs");
 
-		// Print out shader code, just to check
-		if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
+        // Print out shader code, just to check
+        if(DEBUG_MODE) printShaderCode(vertexCode, fragCode);
 
-		// Create shader program from code
-		programID = initShaderProgramFromSource(vertexCode, fragCode);
-	}
-	catch (exception e) {		
-		// Close program
-		cleanupGLFW(window);
-		exit(EXIT_FAILURE);
-	}
+        // Create shader program from code
+        programID = initShaderProgramFromSource(vertexCode, fragCode);
+    }
+    catch (exception e) {        
+        // Close program
+        cleanupGLFW(window);
+        exit(EXIT_FAILURE);
+    }
 
     // Command line argument handling for model path
     string modelPath = "sampleModels/bunnyteatime.glb";
@@ -355,8 +383,20 @@ int main(int argc, char **argv) {
     GLuint viewMatLoc = glGetUniformLocation(programID, "viewMat");
     GLuint projMatLoc = glGetUniformLocation(programID, "projMat");
 
+    // Get the normal matrix location
+    GLint normMatLoc = glGetUniformLocation(programID, "normMat");
+
     // Set the key callback function
     glfwSetKeyCallback(window, keyCallback);
+
+    // Set light properties
+    PointLight light;
+    light.pos = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f); // Initial light position (world space)
+    light.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // Initial light color (white)
+
+    // Get uniform locations for light properties
+    GLuint lightPosLoc = glGetUniformLocation(programID, "light.pos");
+    GLuint lightColorLoc = glGetUniformLocation(programID, "light.color");
 
     // Main rendering loop
     while (!glfwWindowShouldClose(window)) {
@@ -374,6 +414,13 @@ int main(int argc, char **argv) {
         // Create view matrix
         glm::mat4 view = glm::lookAt(eye, lookAt, glm::vec3(0.0f, 1.0f, 0.0f));
 
+        // Calculate the position of the light in eye/view space
+        glm::vec4 lightPosView = view * light.pos;
+
+        // Pass light properties to shader
+        glUniform4fv(lightPosLoc, 1, glm::value_ptr(lightPosView));
+        glUniform4fv(lightColorLoc, 1, glm::value_ptr(light.color));
+
         // Pass view matrix to shader
         glUniformMatrix4fv(viewMatLoc, 1, GL_FALSE, glm::value_ptr(view));
 
@@ -388,8 +435,8 @@ int main(int argc, char **argv) {
         // Pass projection matrix to shader
         glUniformMatrix4fv(projMatLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-        // Draw the scene recursively
-        renderScene(meshGLVector, scene->mRootNode, glm::mat4(1.0f), modelMatLoc, 0);
+        // Main drawing function
+        renderScene(meshGLVector, scene->mRootNode, glm::mat4(1.0f), modelMatLoc, normMatLoc, view, 0);
 
         // Swap buffers and poll for window events
         glfwSwapBuffers(window);

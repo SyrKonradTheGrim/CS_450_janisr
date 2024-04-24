@@ -31,9 +31,9 @@ glm::vec3 lookAt(0.0f, 0.0f, 0.0f); // Default look-at point
 glm::vec2 mousePos(0.0f, 0.0f); // Initial mouse position
 
 glm::mat4 makeLocalRotate(glm::vec3 offset, glm::vec3 axis, float angle) {
-    glm::mat4 translateBack = glm::translate(glm::mat4(1.0f), offset);
+    glm::mat4 translateBack = glm::translate(glm::mat4(1.0f), -offset);
     glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), glm::radians(angle), axis);
-    glm::mat4 translateForward = glm::translate(glm::mat4(1.0f), -offset);
+    glm::mat4 translateForward = glm::translate(glm::mat4(1.0f), offset);
     return translateForward * rotate * translateBack;
 }
 
@@ -51,7 +51,7 @@ glm::mat4 makeRotateZ(glm::vec3 offset) {
 }
 
 static void mouse_position_callback(GLFWwindow* window, double xpos, double ypos) {
-    glm::vec2 relMouse = glm::vec2(xpos, ypos) - mousePos;
+    glm::vec2 relMouse = -(glm::vec2(xpos, ypos) - mousePos);
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     if (width > 0 && height > 0) {

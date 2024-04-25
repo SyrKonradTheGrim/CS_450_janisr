@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
     glfwSetKeyCallback(window, keyCallback);
 
     // Set light properties
-    PointLight light;
+    //PointLight light;
     light.pos = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f); // Initial light position (world space)
     light.color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f); // Initial light color (white)
 

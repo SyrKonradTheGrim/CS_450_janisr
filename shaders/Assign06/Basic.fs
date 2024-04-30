@@ -33,7 +33,7 @@ void main() {
     float specularCoefficient = pow(max(dot(R, V), 0.0), shininess);//Missing Diffuse Coeffiecient mult///////////////////////////////////
 
     // Calculate specular color
-    vec3 specularColor = specularCoefficient * vec3(1.0, 1.0, 1.0);
+    vec3 specularColor = diffuseCoefficient * light.color.rgb * specularCoefficient;
     
     // Set final color
     out_color = vec4(diffColor + specularColor, 1.0);

@@ -29,7 +29,8 @@ vec3 getFresnel(vec3 F0, vec3 L, vec3 H) {
 }
 
 float getNDF(vec3 H, vec3 N, float roughness) {
-    float a2 = roughness * roughness;
+    float a = roughness * roughness;
+    float a2 = a * a;
     float NdotH = max(0.0, dot(N, H));
     float NdotH2 = NdotH * NdotH;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
@@ -66,9 +67,9 @@ void main() {
 
     vec3 kS = F;
     vec3 kD = vec3(1.0) - kS;
-    if (metallic > 0.0) {
+    //if (metallic > 0.0) {
         kD *= (1.0 - metallic) * vec3(vertexColor) / PI;
-    }
+    //}
 
     // Calculate the diffuse coefficient
     float diffuseCoefficient = max(0.0, dot(N, L));
@@ -86,11 +87,11 @@ void main() {
     vec3 specularColor = specularCoefficient * vec3(1.0, 1.0, 1.0);
 
     // Calculate specular reflection
-    float NDF = getNDF(H, interNormal, roughness);
-    float G = getGF(L, V, interNormal, roughness);
-    vec3 specular = kS * NDF * G / (4.0 * max(0.0, dot(interNormal, L)) * max(0.0, dot(N, V)) + 0.0001);
+    float NDF = getNDF(H, N, roughness);
+    float G = getGF(L, V, N, roughness);
+    vec3 specular = kS * NDF * G / (4.0 * max(0.0, dot(N, L)) * max(0.0, dot(N, V)) + 0.0001);
 
-    vec3 finalColor = (kD + specular) * vec3(light.color) * max(0.0, dot(interNormal, L));
+    vec3 finalColor = (kD + specular) * vec3(light.color) * max(0.0, dot(N, L));
     
     // Set final color
     out_color = vec4(finalColor, 1.0);
